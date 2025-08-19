@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf--8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Supabase Realtime Chat – AI Report Demo</title>
   <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <style>
@@ -21,35 +21,35 @@
     
     * { box-sizing: border-box; }
 
-    html, body {
-        height: 100%;
-        overflow: hidden; /* Prevent bouncing */
-    }
-
     body {
         font-family: "Pretendard", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
         margin: 0;
-        background: var(--white); /* Changed to white for seamless app feel */
+        background: var(--background);
         color: var(--text-dark);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 16px;
     }
 
     .chat-app-container {
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        max-width: 900px;
+        height: 90vh;
+        max-height: 800px;
         background: var(--white);
-        border-radius: 0; /* Remove border-radius for full screen */
-        box-shadow: none; /* Remove shadow for full screen */
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
         display: flex;
         flex-direction: column;
         overflow: hidden;
     }
 
     .settings-card {
-        padding: 16px;
-        padding-top: 50px; /* Add padding for status bar area */
+        padding: 20px;
         border-bottom: 1px solid var(--border-color);
         background: #fafbff;
-        flex-shrink: 0;
     }
 
     .row { display: flex; gap: 12px; align-items: center; }
@@ -113,7 +113,6 @@
         flex-grow: 1;
         overflow-y: auto;
         padding: 20px;
-        background-color: var(--background);
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -154,10 +153,8 @@
 
     #chat-controls {
         padding: 16px;
-        padding-bottom: 30px; /* Add padding for home indicator area */
         border-top: 1px solid var(--border-color);
         background: #fafbff;
-        flex-shrink: 0;
     }
     #chat-input-section { gap: 12px; }
     #msg { flex: 1; }
@@ -201,7 +198,7 @@
     .coin-package-selector button.selected{border-color:var(--primary-blue);background:#e8f8fb}
 
     /* AI Report Styles */
-    #ai-report-section{padding:20px;border:1px solid var(--border-color);border-radius:12px;margin-top:10px;animation:fadeIn 0.5s ease-in-out; overflow-y: auto; height: 100vh;}
+    #ai-report-section{padding:20px;border:1px solid var(--border-color);border-radius:12px;margin-top:10px;animation:fadeIn 0.5s ease-in-out; overflow-y: auto;}
     @keyframes fadeIn{from{opacity:0}to{opacity:1}}
     .report-header{text-align:center;margin-bottom:24px}
     .report-header h2{margin:0;font-size:28px}
@@ -230,23 +227,23 @@
   <div class="chat-app-container">
     <div id="main-chat-container" style="display: flex; flex-direction: column; height: 100%;">
       <div class="settings-card">
-        <div class="row" style="margin-bottom: 12px; flex-wrap: wrap;">
-          <div class="input-group" style="flex: 1 1 120px;">
+        <div class="row" style="margin-bottom: 12px;">
+          <div class="input-group" style="flex: 0 1 150px;">
             <label for="userRole">역할</label>
             <select id="userRole">
               <option value="회원">회원</option>
               <option value="코치">코치</option>
             </select>
           </div>
-          <div class="input-group" style="flex: 2 1 200px;">
+          <div class="input-group" style="flex: 1 1 180px;">
             <label for="roomId">Room</label>
             <input id="roomId" placeholder="room id" />
           </div>
-          <div class="input-group" style="flex: 2 1 200px; margin-top: 8px; width: calc(66.66% - 6px);">
+          <div class="input-group" style="flex: 1 1 180px;">
             <label for="userId">User</label>
             <input id="userId" placeholder="user id" />
           </div>
-          <button id="connectBtn" class="btn-primary" style="flex-shrink: 0; margin-top: 8px; width: calc(33.33% - 6px);">Connect</button>
+          <button id="connectBtn" class="btn-primary" style="flex-shrink: 0;">Connect</button>
         </div>
         <div class="row" style="justify-content: space-between;">
             <div id="coin-info-row" class="row">
@@ -372,8 +369,6 @@
         
         d.className = className;
         d.textContent = content;
-        // Store userId on the element to retrieve it later for the report
-        d.dataset.userId = userId; 
         logEl.appendChild(d);
         logEl.scrollTop = logEl.scrollHeight;
     }
@@ -414,13 +409,9 @@
       if(!room){ alert('Room을 입력하세요'); return; }
 
       // Disable settings after connecting
-      document.querySelectorAll('.settings-card .input-group, #connectBtn').forEach(el => {
-          el.querySelectorAll('input, select').forEach(child => child.disabled = true);
-          if (el.tagName === 'BUTTON') el.disabled = true;
-      });
+      document.querySelectorAll('.settings-card .input-group, #connectBtn').forEach(el => el.disabled = true);
       userRoleEl.disabled = true;
       connectBtn.textContent = 'Connected';
-      connectBtn.disabled = true;
 
       logEl.innerHTML = '';
       const { data: history, error: histErr } = await supabase
@@ -540,72 +531,30 @@
 
     // --- AI Report Generation (Gemini Integration) ---
     async function generateAndShowReport() {
-        const messages = Array.from(logEl.querySelectorAll('.msg:not(.system)')).map(el => {
-            const userId = el.dataset.userId || '';
-            return `${userId}: ${el.textContent}`;
-        }).join('\n');
-
+        const messages = Array.from(logEl.querySelectorAll('.msg:not(.system)')).map(el => el.textContent).join('\n');
         if (!messages.trim()) {
             alert("요약할 채팅 내용이 없습니다.");
             return;
         }
-
-        // Find coach name from chat log
-        const coachMessageElement = logEl.querySelector('.msg.coach');
-        const coachName = coachMessageElement ? coachMessageElement.dataset.userId : '코치';
-
         mainChatContainer.style.display = 'none';
         aiReportSection.innerHTML = `<div style="text-align:center;"><p>AI가 PT 내용을 분석 중입니다...</p><div class="loading-spinner"></div></div>`;
         aiReportSection.classList.remove('hidden');
-        
         const apiKey = "AIzaSyD2GnVT8VqTJqlogfF6Y50epC-n8vyNcuw";
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const prompt = `당신은 유능한 AI 퍼스널 트레이너 어시스턴트입니다. 다음은 회원과 코치 간의 PT 채팅 내용입니다. 이 대화를 분석하여 다음 JSON 형식에 맞춰서 내용을 요약하고 생성해주세요. 모든 답변은 한국어로 작성해주세요. 채팅 내용: --- ${messages} ---`;
         const schema = {type: "OBJECT", properties: {diagnosis: { type: "STRING", description: "현재 회원의 상태를 진단한 내용입니다." }, solution: { type: "STRING", description: "진단에 따른 해결 방안입니다." }, routine: { type: "ARRAY", items: { type: "STRING" }, description: "추천 운동 루틴 목록입니다. 각 항목은 '운동이름: 설명' 형식이어야 합니다."}, diet: { type: "STRING", description: "추천 식단입니다." }}, required: ["diagnosis", "solution", "routine", "diet"]};
         const payload = {contents: [{ parts: [{ text: prompt }] }], generationConfig: {responseMimeType: "application/json", responseSchema: schema}};
-        
         try {
             const response = await fetch(apiUrl, {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)});
             if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
             const result = await response.json();
             if (!result.candidates || !result.candidates[0].content.parts[0].text) throw new Error("Invalid AI response format.");
-            
             const aiText = result.candidates[0].content.parts[0].text;
             const aiData = JSON.parse(aiText);
             const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+            const userName = userIdEl.value;
             const routineHTML = aiData.routine.map(item => `<li>${item.replace(/:/g, ': <strong>')}${item.includes(':') ? '</strong>' : ''}</li>`).join('');
-            
-            const reportHTML = `
-                <div class="report-header">
-                    <h2>AI 피드백 리포트</h2>
-                    <p class="muted">회원님의 ${today} PT 요약 리포트입니다.</p>
-                </div>
-                <div class="coach-profile">
-                    <img src="https://placehold.co/100x100/E2E8F0/4A5568?text=Coach" alt="코치 프로필 사진">
-                    <div>
-                        <div class="name">${coachName}</div>
-                        <div class="muted">전문 트레이너</div>
-                    </div>
-                </div>
-                <div class="report-section">
-                    <h4>AI가 분석한 PT 내용</h4>
-                    <div class="report-content">
-                        <p><strong>현재 상태 진단:</strong> ${aiData.diagnosis}</p>
-                        <p><strong>솔루션:</strong> ${aiData.solution}</p>
-                        <p><strong>추천 루틴:</strong><ul>${routineHTML}</ul></p>
-                    </div>
-                </div>
-                <div class="report-section">
-                    <h4>추천 액션</h4>
-                    <p class="muted">PT 내용을 바탕으로 회원님의 피드백 효과를 강화시킬 수 있는 활동을 추천드려요.</p>
-                    <div class="report-content">
-                        <p><strong>추천 식단:</strong> ${aiData.diet}</p>
-                    </div>
-                </div>
-                <div class="action-button-container">
-                    <button class="btn-primary" style="padding: 12px 24px;">챌린지 참여하기</button>
-                </div>`;
-            
+            const reportHTML = `<div class="report-header"><h2>AI 피드백 리포트</h2><p class="muted">회원님의 ${today} PT 요약 리포트입니다.</p></div><div class="coach-profile"><img src="https://placehold.co/100x100/E2E8F0/4A5568?text=Coach" alt="코치 프로필 사진"><div><div class="name">${userName} (AI Assistant)</div><div class="muted">전문 트레이너</div></div></div><div class="report-section"><h4>AI가 분석한 PT 내용</h4><div class="report-content"><p><strong>현재 상태 진단:</strong> ${aiData.diagnosis}</p><p><strong>솔루션:</strong> ${aiData.solution}</p><p><strong>추천 루틴:</strong><ul>${routineHTML}</ul></p></div></div><div class="report-section"><h4>추천 액션</h4><p class="muted">PT 내용을 바탕으로 회원님의 피드백 효과를 강화시킬 수 있는 활동을 추천드려요.</p><div class="report-content"><p><strong>추천 식단:</strong> ${aiData.diet}</p></div></div><div class="action-button-container"><button class="btn-primary" style="padding: 12px 24px;">챌린지 참여하기</button></div>`;
             aiReportSection.innerHTML = reportHTML;
         } catch (error) {
             console.error("AI Report Generation Error:", error);
@@ -619,29 +568,4 @@
         currentUserRole = e.target.value;
         if (currentUserRole === '코치') {
             coinInfoRow.classList.add('hidden');
-            userIdEl.value = `코치-${crypto.randomUUID().slice(0,4)}`;
-        } else {
-            coinInfoRow.classList.remove('hidden');
-            userIdEl.value = `회원-${crypto.randomUUID().slice(0,4)}`;
-        }
-    });
-
-    connectBtn.addEventListener('click', connect);
-    sendBtn.addEventListener('click', send);
-
-    msgEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { 
-        e.preventDefault(); 
-        send(); 
-      }
-    });
-
-    window.addEventListener('beforeunload', () => { 
-      if (channel) supabase.removeChannel(channel); 
-    });
-
-    if (qs.get('room')) connect();
-  </script>
-</body>
-</html>
-
+            userIdEl.value = `코치-${crypto.randomUUID
