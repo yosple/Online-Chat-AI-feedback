@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf--8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Supabase Realtime Chat – AI Report Demo</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <style>
+    :root {
+        --primary-blue: #12B4D9;
+        --light-blue: #B8E9F4;
+        --member-gray: #8F8F8F;
+        --background: #f0f4f8;
+        --text-dark: #1a202c;
+        --text-light: #718096;
+        --border-color: #e2e8f0;
+        --white: #ffffff;
+        --coach-bg: var(--primary-blue);
+        --member-bg: var(--member-gray);
+    }
+    
+    * { box-sizing: border-box; }
+
+    html, body {
+        height: 100%;
+        overflow: hidden; /* Prevent bouncing */
+    }
+
+    body {
+        font-family: "Pretendard", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        margin: 0;
+        background: var(--white); /* Changed to white for seamless app feel */
+        color: var(--text-dark);
+    }
+
+    .chat-app-container {
+        width: 100vw;
+        height: 100vh;
+        background: var(--white);
+        border-radius: 0; /* Remove border-radius for full screen */
+        box-shadow: none; /* Remove shadow for full screen */
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .settings-card {
+        padding: 16px;
+        padding-top: 50px; /* Add padding for status bar area */
+        border-bottom: 1px solid var(--border-color);
+        background: #fafbff;
+        flex-shrink: 0;
+    }
+
+    .row { display: flex; gap: 12px; align-items: center; }
+    
+    input, button, select {
+        padding: 10px 14px;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        font-size: 14px;
+        background-color: var(--white);
+        transition: all 0.2s;
+    }
+    
+    button {
+        background: #f7f7f8;
+        cursor: pointer;
+    }
+    button:hover { background-color: #eef1f4; }
+    
+    button:disabled, select:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+        background-color: #f9fafb;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: var(--white);
+        border: none;
+    }
+    .btn-primary:hover { background-color: #0fa9c7; }
+
+    .input-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        padding-left: 14px;
+        transition: all 0.2s;
+    }
+    .input-group:focus-within {
+        border-color: var(--primary-blue);
+        box-shadow: 0 0 0 2px rgba(18, 180, 217, 0.2);
+    }
+    .input-group label {
+        color: var(--text-light);
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+    .input-group input, .input-group select {
+        border: none;
+        background-color: transparent;
+        padding: 10px 14px 10px 0;
+        width: 100%;
+        outline: none;
+    }
+
+    #log {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background-color: var(--background);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .msg {
+        padding: 10px 16px;
+        border-radius: 18px;
+        max-width: 75%;
+        word-wrap: break-word;
+        line-height: 1.5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        color: var(--white);
+    }
+    .msg.me {
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+    }
+    .msg:not(.me) {
+        align-self: flex-start;
+        border-bottom-left-radius: 4px;
+    }
+    .msg.coach {
+        background: var(--coach-bg);
+    }
+    .msg.member {
+        background: var(--member-bg);
+    }
+    .msg.system {
+        text-align: center;
+        background: transparent;
+        color: var(--text-light);
+        font-size: 12px;
+        align-self: center;
+        box-shadow: none;
+        max-width: 100%;
+    }
+
+    #chat-controls {
+        padding: 16px;
+        padding-bottom: 30px; /* Add padding for home indicator area */
+        border-top: 1px solid var(--border-color);
+        background: #fafbff;
+        flex-shrink: 0;
+    }
+    #chat-input-section { gap: 12px; }
+    #msg { flex: 1; }
+    #sendBtn {
+        background-color: var(--primary-blue);
+        color: white;
+        border: none;
+        padding: 10px;
+        width: 44px;
+        height: 44px;
+        flex-shrink: 0;
+    }
+    #sendBtn:hover { background-color: #0fa9c7; }
+
+    #coin-info-row { justify-content: space-between; align-items: center; }
+    #buy-coins-btn {
+        background-color: var(--light-blue);
+        color: var(--primary-blue);
+        border: none;
+        font-weight: bold;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        font-size: 18px;
+        line-height: 32px;
+        text-align: center;
+    }
+    #buy-coins-btn:hover { background-color: #a2e0ee; }
+
+    /* Modal Styles */
+    .hidden{display:none !important}
+    .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000}
+    .modal-content{background:var(--white);padding:24px;border-radius:12px;width:90%;max-width:400px;text-align:center;box-shadow:0 4px 6px rgba(0,0,0,0.1)}
+    .modal-content h3{margin-top:0;font-size:24px;font-weight:bold}
+    .modal-content p{margin-bottom:24px;color:var(--text-light)}
+    .modal-buttons{display:flex;gap:12px;justify-content:center}
+    .modal-buttons button{flex:1;padding:12px;font-weight:bold}
+    .btn-secondary{background:#f1f1f2;border:1px solid var(--border-color)}
+    .coin-package-selector button{width:100%;margin-bottom:10px;text-align:left;padding:15px; border: 1px solid var(--border-color); border-radius: 10px;}
+    .coin-package-selector button.selected{border-color:var(--primary-blue);background:#e8f8fb}
+
+    /* AI Report Styles */
+    #ai-report-section{padding:20px;border:1px solid var(--border-color);border-radius:12px;margin-top:10px;animation:fadeIn 0.5s ease-in-out; overflow-y: auto; height: 100vh;}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    .report-header{text-align:center;margin-bottom:24px}
+    .report-header h2{margin:0;font-size:28px}
+    .coach-profile{display:flex;align-items:center;gap:12px;margin-bottom:20px;background:#fafafa;padding:12px;border-radius:8px}
+    .coach-profile img{width:50px;height:50px;border-radius:50%}
+    .coach-profile .name{font-weight:bold}
+    .report-section{margin-bottom:24px}
+    .report-section h4{margin-top:0;margin-bottom:8px;font-size:18px;border-bottom:2px solid var(--border-color);padding-bottom:4px}
+    .keywords span{display:inline-block;background:#e8f8fb;color:var(--primary-blue);padding:4px 10px;border-radius:16px;font-size:14px;margin-right:8px}
+    .report-content{line-height:1.6}
+    .action-button-container{text-align:center;margin-top:30px}
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--primary-blue);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="chat-app-container">
+    <div id="main-chat-container" style="display: flex; flex-direction: column; height: 100%;">
+      <div class="settings-card">
+        <div class="row" style="margin-bottom: 12px; flex-wrap: wrap;">
+          <div class="input-group" style="flex: 1 1 120px;">
+            <label for="userRole">역할</label>
+            <select id="userRole">
+              <option value="회원">회원</option>
+              <option value="코치">코치</option>
+            </select>
+          </div>
+          <div class="input-group" style="flex: 2 1 200px;">
+            <label for="roomId">Room</label>
+            <input id="roomId" placeholder="room id" />
+          </div>
+          <div class="input-group" style="flex: 2 1 200px; margin-top: 8px; width: calc(66.66% - 6px);">
+            <label for="userId">User</label>
+            <input id="userId" placeholder="user id" />
+          </div>
+          <button id="connectBtn" class="btn-primary" style="flex-shrink: 0; margin-top: 8px; width: calc(33.33% - 6px);">Connect</button>
+        </div>
+        <div class="row" style="justify-content: space-between;">
+            <div id="coin-info-row" class="row">
+                <strong>남은 코인: <span id="coin-display">5</span>개</strong>
+                <button id="buy-coins-btn" title="코인 구매">+</button>
+            </div>
+            <span id="status" class="meta"></span>
+        </div>
+      </div>
+
+      <div id="log"></div>
+
+      <div id="chat-controls">
+        <div id="chat-input-section" class="row">
+          <input id="msg" placeholder="메시지를 입력하세요 (Enter 전송)" />
+          <button id="sendBtn" title="전송">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+        <div id="end-chat-section" class="hidden" style="text-align:center;">
+          <p class="muted">채팅이 종료되었습니다.</p>
+          <button id="generate-report-btn" class="btn-primary">AI 피드백 리포트 생성</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Feedback Report Section -->
+    <div id="ai-report-section" class="hidden"></div>
+  </div>
+
+  <!-- Out of Coins Popup -->
+  <div id="out-of-coins-popup" class="modal-overlay hidden">
+    <div class="modal-content">
+        <h3>현재 보유 코인 0</h3>
+        <p>코치의 답변을 모두 확인했습니다. 대화를 이어가려면 코인을 충전해주세요!</p>
+        <div class="modal-buttons">
+            <button id="show-purchase-btn" class="btn-primary">충전하기</button>
+            <button id="decline-purchase-btn" class="btn-secondary">다음에 할게요</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Coin Purchase Modal -->
+  <div id="purchase-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <h3>코인 충전</h3>
+      <p>질문을 계속하려면 코인을 충전해주세요.</p>
+      <div id="coin-package-selector" class="coin-package-selector">
+          <button data-coins="5">코인 5개 (₩5,000)</button>
+          <button data-coins="10">코인 10개 (₩9,000)</button>
+          <button data-coins="20">코인 20개 (₩16,000)</button>
+      </div>
+      <div class="modal-buttons">
+        <button id="purchase-confirm-btn" class="btn-primary" disabled>결제하기</button>
+        <button id="purchase-cancel-btn" class="btn-secondary">취소</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+    // 1) Supabase 프로젝트 값 설정
+    const SUPABASE_URL = "https://xdhoxxvgqpwoyvbhfllq.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhkaG94eHZncXB3b3l2YmhmbGxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1MDYwMDIsImV4cCI6MjA3MTA4MjAwMn0.c5iBMx0uEUHY1Pyzaw5zJKUHmlWw_g_FgbFrCkufaS8";
+
+    const { createClient } = window.supabase;
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // --- DOM Elements ---
+    const qs = new URLSearchParams(location.search);
+    const mainChatContainer = document.getElementById('main-chat-container');
+    const userRoleEl = document.getElementById('userRole');
+    const roomIdEl = document.getElementById('roomId');
+    const userIdEl = document.getElementById('userId');
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const msgEl = document.getElementById('msg');
+    const sendBtn = document.getElementById('sendBtn');
+    const connectBtn = document.getElementById('connectBtn');
+    const coinDisplayEl = document.getElementById('coin-display');
+    const coinInfoRow = document.getElementById('coin-info-row');
+    const buyCoinsBtn = document.getElementById('buy-coins-btn');
+    const chatInputSection = document.getElementById('chat-input-section');
+    const endChatSection = document.getElementById('end-chat-section');
+    const generateReportBtn = document.getElementById('generate-report-btn');
+    const aiReportSection = document.getElementById('ai-report-section');
+
+    // Modals and Popups
+    const outOfCoinsPopup = document.getElementById('out-of-coins-popup');
+    const purchaseModal = document.getElementById('purchase-modal');
+    const showPurchaseBtn = document.getElementById('show-purchase-btn');
+    const declinePurchaseBtn = document.getElementById('decline-purchase-btn');
+    const purchaseConfirmBtn = document.getElementById('purchase-confirm-btn');
+    const purchaseCancelBtn = document.getElementById('purchase-cancel-btn');
+    const coinPackageSelector = document.getElementById('coin-package-selector');
+
+    // --- State Management ---
+    let channel;
+    let userCoins = 5;
+    let selectedCoinPackage = null;
+    let isChatActive = true;
+    let currentUserRole = '회원';
+    let waitingForFinalAnswer = false;
+    
+    // --- Initial Setup ---
+    roomIdEl.value = qs.get('room') || 'demo-room';
+    userIdEl.value = qs.get('user') || `회원-${crypto.randomUUID().slice(0,4)}`;
+    updateCoinDisplay();
+
+    // --- Core Functions ---
+    function addLine(userId, content, specialClass = '') {
+        const d = document.createElement('div');
+        let className = 'msg';
+        
+        if (specialClass) {
+            className += ` ${specialClass}`;
+        } else {
+            const isMe = userId === userIdEl.value.trim();
+            const roleClass = userId.includes('코치') ? 'coach' : 'member';
+            const meClass = isMe ? 'me' : '';
+            className += ` ${roleClass} ${meClass}`;
+        }
+        
+        d.className = className;
+        d.textContent = content;
+        // Store userId on the element to retrieve it later for the report
+        d.dataset.userId = userId; 
+        logEl.appendChild(d);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+    
+    function updateCoinDisplay() {
+        coinDisplayEl.textContent = userCoins;
+    }
+
+    function terminateChatSession() {
+        isChatActive = false;
+        msgEl.disabled = true;
+        sendBtn.disabled = true;
+        msgEl.placeholder = "채팅이 종료되었습니다.";
+        chatInputSection.classList.add('hidden');
+        endChatSection.classList.remove('hidden');
+    }
+
+    function enableChat() {
+        isChatActive = true;
+        msgEl.disabled = false;
+        sendBtn.disabled = false;
+        msgEl.placeholder = "메시지를 입력하세요 (Enter 전송)";
+        chatInputSection.classList.remove('hidden');
+        endChatSection.classList.add('hidden');
+    }
+
+    function waitForCoachAnswer() {
+        msgEl.disabled = true;
+        sendBtn.disabled = true;
+        msgEl.placeholder = "코치의 답변을 기다리는 중입니다...";
+        waitingForFinalAnswer = true;
+    }
+
+
+    // --- Supabase Connection & Messaging ---
+    async function connect(){
+      const room = roomIdEl.value.trim();
+      if(!room){ alert('Room을 입력하세요'); return; }
+
+      // Disable settings after connecting
+      document.querySelectorAll('.settings-card .input-group, #connectBtn').forEach(el => {
+          el.querySelectorAll('input, select').forEach(child => child.disabled = true);
+          if (el.tagName === 'BUTTON') el.disabled = true;
+      });
+      userRoleEl.disabled = true;
+      connectBtn.textContent = 'Connected';
+      connectBtn.disabled = true;
+
+      logEl.innerHTML = '';
+      const { data: history, error: histErr } = await supabase
+        .from('messages').select('*').eq('room_id', room).order('created_at', { ascending: true }).limit(100);
+      if (histErr) {
+        addLine(null, '[history error] ' + histErr.message, 'system');
+      } else {
+        (history||[]).forEach(m => addLine(m.user_id, m.content));
+      }
+
+      if (channel) await supabase.removeChannel(channel);
+
+      channel = supabase
+        .channel('room:'+room)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${room}`}, 
+        (payload) => {
+          const m = payload.new;
+          const isMyMessage = m.user_id === userIdEl.value.trim();
+          if (!isMyMessage) {
+              addLine(m.user_id, m.content);
+          }
+          if (currentUserRole === '회원' && waitingForFinalAnswer && !isMyMessage) {
+              outOfCoinsPopup.classList.remove('hidden');
+              waitingForFinalAnswer = false;
+          }
+        })
+        .subscribe((status) => { statusEl.textContent = 'Realtime: ' + status; });
+    }
+
+    async function send(){
+      if (!isChatActive || waitingForFinalAnswer) return;
+      const content = msgEl.value.trim();
+      if (!content) return;
+
+      const room = roomIdEl.value.trim();
+      const user = (userIdEl.value || '').trim() || 'anon';
+
+      if (currentUserRole === '회원') {
+          if (userCoins <= 0) {
+              outOfCoinsPopup.classList.remove('hidden');
+              return;
+          }
+          userCoins--;
+          updateCoinDisplay();
+      }
+      
+      addLine(user, content);
+      msgEl.value = '';
+
+      const { error } = await supabase.from('messages').insert({ room_id: room, user_id: user, content });
+      if (error) {
+        addLine(null, '[send error] ' + error.message, 'system');
+        if (currentUserRole === '회원') {
+            userCoins++;
+            updateCoinDisplay();
+        }
+      }
+
+      if (currentUserRole === '회원' && userCoins <= 0) {
+          waitForCoachAnswer();
+      }
+    }
+    
+    // --- Modal & Purchase Flow ---
+    function closePurchaseModal(callback) {
+        purchaseModal.classList.add('hidden');
+        if (callback) callback();
+    }
+
+    showPurchaseBtn.addEventListener('click', () => {
+        outOfCoinsPopup.classList.add('hidden');
+        purchaseModal.classList.remove('hidden');
+    });
+    
+    buyCoinsBtn.addEventListener('click', () => {
+        purchaseModal.classList.remove('hidden');
+    });
+
+    declinePurchaseBtn.addEventListener('click', () => {
+        outOfCoinsPopup.classList.add('hidden');
+        terminateChatSession();
+    });
+    
+    purchaseCancelBtn.addEventListener('click', () => {
+        closePurchaseModal(() => {
+            if (userCoins <= 0) terminateChatSession();
+        });
+    });
+
+    coinPackageSelector.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            coinPackageSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+            e.target.classList.add('selected');
+            selectedCoinPackage = parseInt(e.target.dataset.coins, 10);
+            purchaseConfirmBtn.disabled = false;
+        }
+    });
+
+    purchaseConfirmBtn.addEventListener('click', () => {
+        if (!selectedCoinPackage) return;
+        purchaseConfirmBtn.disabled = true;
+        purchaseConfirmBtn.textContent = '결제 진행 중...';
+
+        setTimeout(() => {
+            userCoins += selectedCoinPackage;
+            updateCoinDisplay();
+            addLine(null, `${selectedCoinPackage}개의 코인이 충전되었습니다.`, 'system');
+            
+            closePurchaseModal(() => {
+                enableChat();
+                purchaseConfirmBtn.textContent = '결제하기';
+                selectedCoinPackage = null;
+                coinPackageSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('selected'));
+            });
+        }, 1500);
+    });
+
+    // --- AI Report Generation (Gemini Integration) ---
+    async function generateAndShowReport() {
+        const messages = Array.from(logEl.querySelectorAll('.msg:not(.system)')).map(el => {
+            const userId = el.dataset.userId || '';
+            return `${userId}: ${el.textContent}`;
+        }).join('\n');
+
+        if (!messages.trim()) {
+            alert("요약할 채팅 내용이 없습니다.");
+            return;
+        }
+
+        // Find coach name from chat log
+        const coachMessageElement = logEl.querySelector('.msg.coach');
+        const coachName = coachMessageElement ? coachMessageElement.dataset.userId : '코치';
+
+        mainChatContainer.style.display = 'none';
+        aiReportSection.innerHTML = `<div style="text-align:center;"><p>AI가 PT 내용을 분석 중입니다...</p><div class="loading-spinner"></div></div>`;
+        aiReportSection.classList.remove('hidden');
+        
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const prompt = `당신은 유능한 AI 퍼스널 트레이너 어시스턴트입니다. 다음은 회원과 코치 간의 PT 채팅 내용입니다. 이 대화를 분석하여 다음 JSON 형식에 맞춰서 내용을 요약하고 생성해주세요. 모든 답변은 한국어로 작성해주세요. 채팅 내용: --- ${messages} ---`;
+        const schema = {type: "OBJECT", properties: {diagnosis: { type: "STRING", description: "현재 회원의 상태를 진단한 내용입니다." }, solution: { type: "STRING", description: "진단에 따른 해결 방안입니다." }, routine: { type: "ARRAY", items: { type: "STRING" }, description: "추천 운동 루틴 목록입니다. 각 항목은 '운동이름: 설명' 형식이어야 합니다."}, diet: { type: "STRING", description: "추천 식단입니다." }}, required: ["diagnosis", "solution", "routine", "diet"]};
+        const payload = {contents: [{ parts: [{ text: prompt }] }], generationConfig: {responseMimeType: "application/json", responseSchema: schema}};
+        
+        try {
+            const response = await fetch(apiUrl, {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)});
+            if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
+            const result = await response.json();
+            if (!result.candidates || !result.candidates[0].content.parts[0].text) throw new Error("Invalid AI response format.");
+            
+            const aiText = result.candidates[0].content.parts[0].text;
+            const aiData = JSON.parse(aiText);
+            const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+            const routineHTML = aiData.routine.map(item => `<li>${item.replace(/:/g, ': <strong>')}${item.includes(':') ? '</strong>' : ''}</li>`).join('');
+            
+            const reportHTML = `
+                <div class="report-header">
+                    <h2>AI 피드백 리포트</h2>
+                    <p class="muted">회원님의 ${today} PT 요약 리포트입니다.</p>
+                </div>
+                <div class="coach-profile">
+                    <img src="https://placehold.co/100x100/E2E8F0/4A5568?text=Coach" alt="코치 프로필 사진">
+                    <div>
+                        <div class="name">${coachName}</div>
+                        <div class="muted">전문 트레이너</div>
+                    </div>
+                </div>
+                <div class="report-section">
+                    <h4>AI가 분석한 PT 내용</h4>
+                    <div class="report-content">
+                        <p><strong>현재 상태 진단:</strong> ${aiData.diagnosis}</p>
+                        <p><strong>솔루션:</strong> ${aiData.solution}</p>
+                        <p><strong>추천 루틴:</strong><ul>${routineHTML}</ul></p>
+                    </div>
+                </div>
+                <div class="report-section">
+                    <h4>추천 액션</h4>
+                    <p class="muted">PT 내용을 바탕으로 회원님의 피드백 효과를 강화시킬 수 있는 활동을 추천드려요.</p>
+                    <div class="report-content">
+                        <p><strong>추천 식단:</strong> ${aiData.diet}</p>
+                    </div>
+                </div>
+                <div class="action-button-container">
+                    <button class="btn-primary" style="padding: 12px 24px;">챌린지 참여하기</button>
+                </div>`;
+            
+            aiReportSection.innerHTML = reportHTML;
+        } catch (error) {
+            console.error("AI Report Generation Error:", error);
+            aiReportSection.innerHTML = `<div style="text-align:center;"><p>리포트 생성 중 오류가 발생했습니다.</p><p class="muted" style="font-size:12px;">${error.message}</p><button onclick="location.reload()">새로고침</button></div>`;
+        }
+    }
+    generateReportBtn.addEventListener('click', generateAndShowReport);
+
+    // --- Event Listeners ---
+    userRoleEl.addEventListener('change', (e) => {
+        currentUserRole = e.target.value;
+        if (currentUserRole === '코치') {
+            coinInfoRow.classList.add('hidden');
+            userIdEl.value = `코치-${crypto.randomUUID().slice(0,4)}`;
+        } else {
+            coinInfoRow.classList.remove('hidden');
+            userIdEl.value = `회원-${crypto.randomUUID().slice(0,4)}`;
+        }
+    });
+
+    connectBtn.addEventListener('click', connect);
+    sendBtn.addEventListener('click', send);
+
+    msgEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        send(); 
+      }
+    });
+
+    window.addEventListener('beforeunload', () => { 
+      if (channel) supabase.removeChannel(channel); 
+    });
+
+    if (qs.get('room')) connect();
+  </script>
+</body>
+</html>
