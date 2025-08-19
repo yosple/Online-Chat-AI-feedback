@@ -553,7 +553,7 @@
         aiReportSection.innerHTML = `<div style="text-align:center;"><p>AI가 PT 내용을 분석 중입니다...</p><div class="loading-spinner"></div></div>`;
         aiReportSection.classList.remove('hidden');
         
-        const apiKey = "YOURAIzaSyD2GnVT8VqTJqlogfF6Y50epC-n8vyNcuw"; // 여기에 발급받은 API 키를 입력하세요.
+        const apiKey = "AIzaSyD2GnVT8VqTJqlogfF6Y50epC-n8vyNcuw"; // 여기에 발급받은 API 키를 입력하세요.
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const prompt = `당신은 유능한 AI 퍼스널 트레이너 어시스턴트입니다. 다음은 회원과 코치 간의 PT 채팅 내용입니다. 이 대화를 분석하여 다음 JSON 형식에 맞춰서 내용을 요약하고 생성해주세요. 모든 답변은 한국어로 작성해주세요. 채팅 내용: --- ${messages} ---`;
         const schema = {type: "OBJECT", properties: {diagnosis: { type: "STRING", description: "현재 회원의 상태를 진단한 내용입니다." }, solution: { type: "STRING", description: "진단에 따른 해결 방안입니다." }, routine: { type: "ARRAY", items: { type: "STRING" }, description: "추천 운동 루틴 목록입니다. 각 항목은 '운동이름: 설명' 형식이어야 합니다."}, diet: { type: "STRING", description: "추천 식단입니다." }}, required: ["diagnosis", "solution", "routine", "diet"]};
@@ -658,3 +658,4 @@
   </script>
 </body>
 </html>
+
