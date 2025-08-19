@@ -69,7 +69,7 @@
     }
     button:hover { background-color: #eef1f4; }
     
-    button:disabled, select:disabled {
+    button:disabled, select:disabled, input:disabled {
         cursor: not-allowed;
         opacity: 0.6;
         background-color: #f9fafb;
@@ -237,11 +237,11 @@
           </div>
           <div class="input-group" style="flex: 1 1 180px;">
             <label for="roomId">Room</label>
-            <input id="roomId" placeholder="room id" />
+            <input id="roomId" placeholder="예: 13" />
           </div>
           <div class="input-group" style="flex: 1 1 180px;">
             <label for="userId">User</label>
-            <input id="userId" placeholder="user id" />
+            <input id="userId" placeholder="사용자 이름" />
           </div>
           <button id="connectBtn" class="btn-primary" style="flex-shrink: 0;">Connect</button>
         </div>
@@ -349,7 +349,7 @@
     let waitingForFinalAnswer = false;
     
     // --- Initial Setup ---
-    roomIdEl.value = qs.get('room') || 'demo-room';
+    roomIdEl.value = qs.get('room') || ''; // Default to empty
     userIdEl.value = qs.get('user') || `회원-${crypto.randomUUID().slice(0,4)}`;
     updateCoinDisplay();
 
@@ -409,8 +409,9 @@
       if(!room){ alert('Room을 입력하세요'); return; }
 
       // Disable settings after connecting
-      document.querySelectorAll('.settings-card .input-group, #connectBtn').forEach(el => el.disabled = true);
-      userRoleEl.disabled = true;
+      document.querySelectorAll('.settings-card input, .settings-card select, .settings-card button').forEach(el => {
+        el.disabled = true;
+      });
       connectBtn.textContent = 'Connected';
 
       logEl.innerHTML = '';
@@ -539,7 +540,7 @@
         mainChatContainer.style.display = 'none';
         aiReportSection.innerHTML = `<div style="text-align:center;"><p>AI가 PT 내용을 분석 중입니다...</p><div class="loading-spinner"></div></div>`;
         aiReportSection.classList.remove('hidden');
-        const apiKey = "AIzaSyD2GnVT8VqTJqlogfF6Y50epC-n8vyNcuw";
+        const apiKey = "AIzaSyD2GnVT8VqTJqlogfF6Y50epC-n8vyNcuw"; // 여기에 발급받은 API 키를 입력하세요.
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const prompt = `당신은 유능한 AI 퍼스널 트레이너 어시스턴트입니다. 다음은 회원과 코치 간의 PT 채팅 내용입니다. 이 대화를 분석하여 다음 JSON 형식에 맞춰서 내용을 요약하고 생성해주세요. 모든 답변은 한국어로 작성해주세요. 채팅 내용: --- ${messages} ---`;
         const schema = {type: "OBJECT", properties: {diagnosis: { type: "STRING", description: "현재 회원의 상태를 진단한 내용입니다." }, solution: { type: "STRING", description: "진단에 따른 해결 방안입니다." }, routine: { type: "ARRAY", items: { type: "STRING" }, description: "추천 운동 루틴 목록입니다. 각 항목은 '운동이름: 설명' 형식이어야 합니다."}, diet: { type: "STRING", description: "추천 식단입니다." }}, required: ["diagnosis", "solution", "routine", "diet"]};
@@ -568,4 +569,29 @@
         currentUserRole = e.target.value;
         if (currentUserRole === '코치') {
             coinInfoRow.classList.add('hidden');
-            userIdEl.value = `코치-${crypto.randomUUID
+            userIdEl.value = `코치-${crypto.randomUUID().slice(0,4)}`;
+        } else {
+            coinInfoRow.classList.remove('hidden');
+            userIdEl.value = `회원-${crypto.randomUUID().slice(0,4)}`;
+        }
+    });
+
+    connectBtn.addEventListener('click', connect);
+    sendBtn.addEventListener('click', send);
+
+    msgEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { 
+        e.preventDefault(); 
+        send(); 
+      }
+    });
+
+    window.addEventListener('beforeunload', () => { 
+      if (channel) supabase.removeChannel(channel); 
+    });
+
+    // Removed auto-connect feature to prevent inputs from being disabled on mobile load.
+    // if (qs.get('room')) connect();
+  </script>
+</body>
+</html>
