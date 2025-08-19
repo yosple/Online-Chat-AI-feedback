@@ -129,6 +129,11 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         color: var(--white);
     }
+    .msg img {
+        max-width: 100%;
+        border-radius: 10px;
+        margin-top: 5px;
+    }
     .msg.me {
         align-self: flex-end;
         border-bottom-right-radius: 4px;
@@ -241,6 +246,8 @@
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <input type="file" id="file-input" class="hidden" accept="image/*,video/*">
+
   <div class="chat-app-container">
     <div id="main-chat-container" style="display: flex; flex-direction: column; height: 100%;">
       <div class="settings-card">
@@ -278,7 +285,7 @@
           <button id="attachBtn" title="파일 첨부">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
           </button>
-          <input id="msg" placeholder="메시지를 입력하세요 (Enter 전송)" />
+          <input id="msg" placeholder="메시지를 입력하세요" />
           <button id="sendBtn" title="전송">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
@@ -342,6 +349,8 @@
     const logEl = document.getElementById('log');
     const msgEl = document.getElementById('msg');
     const sendBtn = document.getElementById('sendBtn');
+    const attachBtn = document.getElementById('attachBtn');
+    const fileInput = document.getElementById('file-input');
     const connectBtn = document.getElementById('connectBtn');
     const coinDisplayEl = document.getElementById('coin-display');
     const coinInfoRow = document.getElementById('coin-info-row');
@@ -364,12 +373,12 @@
     let channel;
     let userCoins = 5;
     let selectedCoinPackage = null;
-    let isChatActive = true;
+    let isChatActive = false;
     let currentUserRole = '회원';
     let waitingForFinalAnswer = false;
     
     // --- Initial Setup ---
-    roomIdEl.value = qs.get('room') || ''; // Default to empty
+    roomIdEl.value = qs.get('room') || '';
     userIdEl.value = qs.get('user') || `회원-${crypto.randomUUID().slice(0,4)}`;
     updateCoinDisplay();
 
@@ -388,8 +397,18 @@
         }
         
         d.className = className;
-        d.textContent = content;
         d.dataset.userId = userId;
+
+        if (content.startsWith('IMAGE::')) {
+            const imageUrl = content.substring(7);
+            const img = document.createElement('img');
+            img.src = imageUrl;
+            img.alt = "첨부된 이미지";
+            d.appendChild(img);
+        } else {
+            d.textContent = content;
+        }
+        
         logEl.appendChild(d);
         logEl.scrollTop = logEl.scrollHeight;
     }
@@ -402,6 +421,7 @@
         isChatActive = false;
         msgEl.disabled = true;
         sendBtn.disabled = true;
+        attachBtn.disabled = true;
         msgEl.placeholder = "채팅이 종료되었습니다.";
         chatInputSection.classList.add('hidden');
         endChatSection.classList.remove('hidden');
@@ -411,7 +431,8 @@
         isChatActive = true;
         msgEl.disabled = false;
         sendBtn.disabled = false;
-        msgEl.placeholder = "메시지를 입력하세요 (Enter 전송)";
+        attachBtn.disabled = false;
+        msgEl.placeholder = "메시지를 입력하세요";
         chatInputSection.classList.remove('hidden');
         endChatSection.classList.add('hidden');
     }
@@ -419,6 +440,7 @@
     function waitForCoachAnswer() {
         msgEl.disabled = true;
         sendBtn.disabled = true;
+        attachBtn.disabled = true;
         msgEl.placeholder = "코치의 답변을 기다리는 중입니다...";
         waitingForFinalAnswer = true;
     }
@@ -433,6 +455,7 @@
         el.disabled = true;
       });
       connectBtn.textContent = 'Connected';
+      enableChat();
 
       logEl.innerHTML = '';
       const { data: history, error: histErr } = await supabase
@@ -462,40 +485,70 @@
         .subscribe((status) => { statusEl.textContent = 'Realtime: ' + status; });
     }
 
-    async function send(){
-      if (!isChatActive || waitingForFinalAnswer) return;
-      const content = msgEl.value.trim();
-      if (!content) return;
+    async function sendMessage(content) {
+        if (!isChatActive || waitingForFinalAnswer) return;
 
-      const room = roomIdEl.value.trim();
-      const user = (userIdEl.value || '').trim() || 'anon';
+        const room = roomIdEl.value.trim();
+        const user = (userIdEl.value || '').trim() || 'anon';
 
-      if (currentUserRole === '회원') {
-          if (userCoins <= 0) {
-              outOfCoinsPopup.classList.remove('hidden');
-              return;
-          }
-          userCoins--;
-          updateCoinDisplay();
-      }
-      
-      addLine(user, content);
-      msgEl.value = '';
-
-      const { error } = await supabase.from('messages').insert({ room_id: room, user_id: user, content });
-      if (error) {
-        addLine(null, '[send error] ' + error.message, 'system');
         if (currentUserRole === '회원') {
-            userCoins++;
+            if (userCoins <= 0) {
+                outOfCoinsPopup.classList.remove('hidden');
+                return;
+            }
+            userCoins--;
             updateCoinDisplay();
         }
-      }
+        
+        addLine(user, content);
+        
+        const { error } = await supabase.from('messages').insert({ room_id: room, user_id: user, content });
+        if (error) {
+            addLine(null, '[send error] ' + error.message, 'system');
+            if (currentUserRole === '회원') {
+                userCoins++;
+                updateCoinDisplay();
+            }
+        }
 
-      if (currentUserRole === '회원' && userCoins <= 0) {
-          waitForCoachAnswer();
-      }
+        if (currentUserRole === '회원' && userCoins <= 0) {
+            waitForCoachAnswer();
+        }
     }
     
+    // --- File Upload Logic ---
+    async function handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        addLine(null, `이미지 업로드 중...`, 'system');
+        const filePath = `public/${Date.now()}-${file.name}`;
+        
+        try {
+            const { error: uploadError } = await supabase.storage
+                .from('chat-files') // **중요**: Supabase에 'chat-files' 버킷을 만들어야 합니다.
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage
+                .from('chat-files')
+                .getPublicUrl(filePath);
+            
+            if (!data || !data.publicUrl) throw new Error('Public URL을 가져올 수 없습니다.');
+
+            const imageUrl = data.publicUrl;
+            await sendMessage(`IMAGE::${imageUrl}`);
+
+        } catch (error) {
+            console.error('Upload Error:', error);
+            addLine(null, `[파일 업로드 오류] ${error.message}`, 'system');
+        } finally {
+            // Clear the input value to allow selecting the same file again
+            event.target.value = '';
+        }
+    }
+
     // --- Modal & Purchase Flow ---
     function closePurchaseModal(callback) {
         purchaseModal.classList.add('hidden');
@@ -554,7 +607,8 @@
     async function generateAndShowReport() {
         const messages = Array.from(logEl.querySelectorAll('.msg:not(.system)')).map(el => {
             const userId = el.dataset.userId || '';
-            return `${userId}: ${el.textContent}`;
+            const content = el.querySelector('img') ? '[이미지]' : el.textContent;
+            return `${userId}: ${content}`;
         }).join('\n');
 
         if (!messages.trim()) {
@@ -656,21 +710,32 @@
     });
 
     connectBtn.addEventListener('click', connect);
-    sendBtn.addEventListener('click', send);
+    sendBtn.addEventListener('click', () => {
+        const content = msgEl.value.trim();
+        if (content) {
+            sendMessage(content);
+            msgEl.value = '';
+        }
+    });
 
+    attachBtn.addEventListener('click', () => {
+        if (isChatActive) {
+            fileInput.click();
+        }
+    });
+
+    fileInput.addEventListener('change', handleFileUpload);
+    
     msgEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { 
         e.preventDefault(); 
-        send(); 
+        sendBtn.click();
       }
     });
 
     window.addEventListener('beforeunload', () => { 
       if (channel) supabase.removeChannel(channel); 
     });
-
-    // Removed auto-connect feature to prevent inputs from being disabled on mobile load.
-    // if (qs.get('room')) connect();
   </script>
 </body>
 </html>
