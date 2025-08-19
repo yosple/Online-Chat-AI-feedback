@@ -1,11 +1,10 @@
 // api/generate-report.js
 
 export default async function handler(request, response) {
-  // 1. 사용자가 보낸 채팅 내용을 받습니다.
-  const { messages } = await request.json();
+  // 1. Vercel이 이미 열어둔 요청 내용을 바로 사용합니다. (수정된 부분)
+  const { messages } = request.body;
 
   // 2. Vercel 서버의 안전한 금고에서 API 키를 꺼냅니다.
-  //    이 키는 외부에는 절대 노출되지 않습니다.
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
