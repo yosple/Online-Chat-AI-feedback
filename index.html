@@ -532,11 +532,24 @@
       
       channel.on('presence', { event: 'sync' }, () => {
           const presences = channel.presenceState();
-          const currentUserKey = userIdEl.value.trim();
-          const otherUserKey = Object.keys(presences).find(key => key !== currentUserKey);
-          
-          if (otherUserKey && presences[otherUserKey][0]?.is_typing) {
-              typingIndicator.textContent = `${presences[otherUserKey][0].name}님이 입력 중...`;
+          const currentUserName = userIdEl.value.trim();
+          let otherUserIsTyping = false;
+          let typingUserName = '';
+
+          for (const key in presences) {
+              const userPresenceArray = presences[key];
+              if (userPresenceArray.length > 0) {
+                  const userPresence = userPresenceArray[0];
+                  if (userPresence.name !== currentUserName && userPresence.is_typing) {
+                      otherUserIsTyping = true;
+                      typingUserName = userPresence.name;
+                      break; 
+                  }
+              }
+          }
+
+          if (otherUserIsTyping) {
+              typingIndicator.textContent = `${typingUserName}님이 입력 중...`;
           } else {
               typingIndicator.textContent = '';
           }
@@ -588,7 +601,6 @@
                 updateCoinDisplay();
             }
         } else {
-            // Only add line locally for the sender if DB insert is successful
             addLine(user, content);
         }
 
