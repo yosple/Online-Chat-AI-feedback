@@ -310,34 +310,40 @@
 
     <!-- AI Feedback Report Section -->
     <div id="ai-report-section" class="hidden">
-        <div class="report-header">
-            <h2>AI 피드백 리포트</h2>
-            <p class="muted" id="report-date"></p>
+        <div id="report-loader" class="hidden" style="text-align:center; padding-top: 50px;">
+            <p>AI가 PT 내용을 분석 중입니다...</p>
+            <div class="loading-spinner"></div>
         </div>
-        <div class="coach-profile">
-            <img src="https://placehold.co/100x100/E2E8F0/4A5568?text=Coach" alt="코치 프로필 사진">
-            <div>
-                <div class="name" id="report-coach-name"></div>
-                <div class="muted">전문 트레이너</div>
+        <div id="report-content-wrapper">
+            <div class="report-header">
+                <h2>AI 피드백 리포트</h2>
+                <p class="muted" id="report-date"></p>
             </div>
-        </div>
-        <div class="report-section">
-            <h4>AI가 분석한 PT 내용</h4>
-            <div class="report-content">
-                <p><strong>현재 상태 진단:</strong> <span id="report-diagnosis"></span></p>
-                <p><strong>솔루션:</strong> <span id="report-solution"></span></p>
-                <p><strong>추천 루틴:</strong><ul id="report-routine"></ul></p>
+            <div class="coach-profile">
+                <img src="https://placehold.co/100x100/E2E8F0/4A5568?text=Coach" alt="코치 프로필 사진">
+                <div>
+                    <div class="name" id="report-coach-name"></div>
+                    <div class="muted">전문 트레이너</div>
+                </div>
             </div>
-        </div>
-        <div class="report-section">
-            <h4>추천 액션</h4>
-            <p class="muted">PT 내용을 바탕으로 회원님의 피드백 효과를 강화시킬 수 있는 활동을 추천드려요.</p>
-            <div class="report-content">
-                <p><strong>추천 식단:</strong> <span id="report-diet"></span></p>
+            <div class="report-section">
+                <h4>AI가 분석한 PT 내용</h4>
+                <div class="report-content">
+                    <p><strong>현재 상태 진단:</strong> <span id="report-diagnosis"></span></p>
+                    <p><strong>솔루션:</strong> <span id="report-solution"></span></p>
+                    <p><strong>추천 루틴:</strong><ul id="report-routine"></ul></p>
+                </div>
             </div>
-        </div>
-        <div class="action-button-container">
-            <a href="https://www.figma.com/proto/I0cv2B50gnwsY7c0MQGQ0l/UI?node-id=590-7471&t=XrDMvr6n7opikN2h-1" class="btn-primary" style="padding: 12px 24px; text-decoration: none;">챌린지 참여하기</a>
+            <div class="report-section">
+                <h4>추천 액션</h4>
+                <p class="muted">PT 내용을 바탕으로 회원님의 피드백 효과를 강화시킬 수 있는 활동을 추천드려요.</p>
+                <div class="report-content">
+                    <p><strong>추천 식단:</strong> <span id="report-diet"></span></p>
+                </div>
+            </div>
+            <div class="action-button-container">
+                <a href="https://www.figma.com/proto/I0cv2B50gnwsY7c0MQGQ0l/UI?node-id=590-7471&t=XrDMvr6n7opikN2h-1" class="btn-primary" style="padding: 12px 24px; text-decoration: none;">챌린지 참여하기</a>
+            </div>
         </div>
     </div>
   </div>
@@ -401,6 +407,8 @@
     const generateReportBtn = document.getElementById('generate-report-btn');
     const aiReportSection = document.getElementById('ai-report-section');
     const typingIndicator = document.getElementById('typing-indicator');
+    const reportLoader = document.getElementById('report-loader');
+    const reportContentWrapper = document.getElementById('report-content-wrapper');
 
     // Modals and Popups
     const outOfCoinsPopup = document.getElementById('out-of-coins-popup');
@@ -540,7 +548,7 @@
               const userPresenceArray = presences[key];
               if (userPresenceArray.length > 0) {
                   const userState = userPresenceArray[0];
-                  if (userState.name !== currentUserName && userState.is_typing) {
+                  if (userState.name && userState.name !== currentUserName && userState.is_typing) {
                       otherUserIsTyping = true;
                       typingUserName = userState.name;
                       break;
@@ -601,8 +609,6 @@
                 updateCoinDisplay();
             }
         } else {
-             // The real-time listener will now handle displaying all messages, including our own.
-             // To ensure the sender sees their message immediately, we can add it locally.
              addLine(user, content);
         }
 
@@ -699,7 +705,91 @@
 
     // --- AI Report Generation (Gemini Integration) ---
     async function generateAndShowReport() {
-        // ... (The rest of the AI report generation code is unchanged)
+        const messages = Array.from(logEl.querySelectorAll('.msg:not(.system)')).map(el => {
+            const userId = el.dataset.userId || '';
+            const content = el.querySelector('img') ? '[이미지]' : el.textContent;
+            return `${userId}: ${content}`;
+        }).join('\n');
+
+        if (!messages.trim()) {
+            alert("요약할 채팅 내용이 없습니다.");
+            return;
+        }
+
+        const coachMessageElement = logEl.querySelector('.msg.coach');
+        const coachName = coachMessageElement ? coachMessageElement.dataset.userId : '코치';
+
+        mainChatContainer.style.display = 'none';
+        aiReportSection.classList.remove('hidden');
+        
+        reportLoader.classList.remove('hidden');
+        reportContentWrapper.classList.add('hidden');
+
+        const apiUrl = `/api/generate-report`;
+        const payload = { messages: messages };
+        
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.json();
+                throw new Error(`API 호출 실패: ${response.status}. 내용: ${errorBody.error}`);
+            }
+            const result = await response.json();
+            if (!result.candidates || !result.candidates[0].content.parts[0].text) {
+                throw new Error("AI 응답 형식이 올바르지 않습니다.");
+            }
+            
+            let aiText = result.candidates[0].content.parts[0].text;
+            let aiData;
+
+            try {
+                const jsonMatch = aiText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    aiData = JSON.parse(jsonMatch[0]);
+                } else {
+                    aiData = JSON.parse(aiText);
+                }
+            } catch (parseError) {
+                console.error("AI 응답 JSON 분석 실패:", aiText);
+                throw new Error("AI 응답을 분석하는 중 오류가 발생했습니다 (Invalid JSON).");
+            }
+
+            const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            document.getElementById('report-date').textContent = `회원님의 ${today} PT 요약 리포트입니다.`;
+            document.getElementById('report-coach-name').textContent = coachName;
+            document.getElementById('report-diagnosis').textContent = aiData.diagnosis;
+            document.getElementById('report-solution').textContent = aiData.solution;
+            document.getElementById('report-diet').textContent = aiData.diet;
+            
+            const routineList = document.getElementById('report-routine');
+            routineList.innerHTML = '';
+            aiData.routine.forEach(item => {
+                const li = document.createElement('li');
+                const parts = item.split(':');
+                if (parts.length > 1) {
+                    const strong = document.createElement('strong');
+                    strong.textContent = parts[0] + ': ';
+                    li.appendChild(strong);
+                    li.append(parts.slice(1).join(':'));
+                } else {
+                    li.textContent = item;
+                }
+                routineList.appendChild(li);
+            });
+            
+            reportLoader.classList.add('hidden');
+            reportContentWrapper.classList.remove('hidden');
+            
+        } catch (error) {
+            console.error("AI 리포트 생성 오류:", error);
+            aiReportSection.innerHTML = `<div style="text-align:center; padding-top: 50px;"><p>리포트 생성 중 오류가 발생했습니다.</p><p class="muted" style="font-size:12px; max-width: 90%; margin: 10px auto; word-break: break-all;">${error.message}</p><button onclick="location.reload()" class="btn-primary" style="padding: 10px 20px; margin-top: 20px;">다시 시도</button></div>`;
+        }
     }
     generateReportBtn.addEventListener('click', generateAndShowReport);
 
@@ -721,7 +811,6 @@
         if (content) {
             sendMessage(content);
             msgEl.value = '';
-            // Stop broadcasting typing after sending
             clearTimeout(typingTimeout);
             if (channel) channel.track({ name: userIdEl.value.trim(), is_typing: false });
         }
@@ -756,15 +845,4 @@
     });
   </script>
 </body>
-</ht" code between  and  in the most up-to-date Canvas "1:1 PT 채팅 및 AI 리포트 앱 (최종 수정)" document above and am asking a query about/based on this code below.
-Instructions to follow:
-  * Don't output/edit the document if the query is Direct/Simple. For example, if the query asks for a simple explanation, output a direct answer.
-  * Make sure to **edit** the document if the query shows the intent of editing the document, in which case output the entire edited document, **not just that section or the edits**.
-    * Don't output the same document/empty document and say that you have edited it.
-    * Don't change unrelated code in the document.
-  * Don't output  and  in your final response.
-  * Any references like "this" or "selected code" refers to the code between  and  tags.
-  * Just acknowledge my request in the introduction.
-  * Make sure to refer to the document as "Canvas" in your response.
-
-User ID 가 있잖아 Undefined말고 '(서로의 ID)님이 입력 중..'으 로 나오게 할 수
+</html>
