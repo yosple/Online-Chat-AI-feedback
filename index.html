@@ -532,9 +532,11 @@
       
       channel.on('presence', { event: 'sync' }, () => {
           const presences = channel.presenceState();
-          const otherUser = Object.keys(presences).find(key => key !== userIdEl.value.trim());
-          if (otherUser && presences[otherUser][0]?.is_typing) {
-              typingIndicator.textContent = `${presences[otherUser][0].name}님이 입력 중...`;
+          const currentUserKey = userIdEl.value.trim();
+          const otherUserKey = Object.keys(presences).find(key => key !== currentUserKey);
+          
+          if (otherUserKey && presences[otherUserKey][0]?.is_typing) {
+              typingIndicator.textContent = `${presences[otherUserKey][0].name}님이 입력 중...`;
           } else {
               typingIndicator.textContent = '';
           }
@@ -579,15 +581,15 @@
         
         const { error } = await supabase.from('messages').insert({ room_id: room, user_id: user, content });
         
-        // Add line locally only after successful DB insert to avoid duplication
-        if (!error) {
-            addLine(user, content);
-        } else {
+        if (error) {
             addLine(null, '[send error] ' + error.message, 'system');
             if (currentUserRole === '회원') {
                 userCoins++;
                 updateCoinDisplay();
             }
+        } else {
+            // Only add line locally for the sender if DB insert is successful
+            addLine(user, content);
         }
 
         if (currentUserRole === '회원' && userCoins <= 0) {
@@ -707,7 +709,7 @@
             msgEl.value = '';
             // Stop broadcasting typing after sending
             clearTimeout(typingTimeout);
-            channel.track({ is_typing: false });
+            if (channel) channel.track({ is_typing: false });
         }
     });
 
@@ -740,4 +742,4 @@
     });
   </script>
 </body>
-</html>
+</ht
