@@ -537,11 +537,12 @@
           let typingUserName = '';
 
           for (const key in presences) {
-              if (key !== channel.presence.get(channel.topic)[0].presence_ref) {
-                  const userPresenceArray = presences[key];
-                  if (userPresenceArray.length > 0 && userPresenceArray[0].is_typing) {
+              const userPresenceArray = presences[key];
+              if (userPresenceArray.length > 0) {
+                  const userState = userPresenceArray[0];
+                  if (userState.name !== currentUserName && userState.is_typing) {
                       otherUserIsTyping = true;
-                      typingUserName = userPresenceArray[0].name;
+                      typingUserName = userState.name;
                       break;
                   }
               }
@@ -600,7 +601,9 @@
                 updateCoinDisplay();
             }
         } else {
-            // No longer add line locally, let the real-time listener handle it
+             // The real-time listener will now handle displaying all messages, including our own.
+             // To ensure the sender sees their message immediately, we can add it locally.
+             addLine(user, content);
         }
 
         if (currentUserRole === '회원' && userCoins <= 0) {
