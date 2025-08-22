@@ -723,7 +723,7 @@
             msgEl.value = '';
             // Stop broadcasting typing after sending
             clearTimeout(typingTimeout);
-            if (channel) channel.track({ is_typing: false });
+            if (channel) channel.track({ name: userIdEl.value.trim(), is_typing: false });
         }
     });
 
@@ -738,9 +738,9 @@
     msgEl.addEventListener('input', () => {
         if (!channel) return;
         clearTimeout(typingTimeout);
-        channel.track({ is_typing: true });
+        channel.track({ name: userIdEl.value.trim(), is_typing: true });
         typingTimeout = setTimeout(() => {
-            channel.track({ is_typing: false });
+            channel.track({ name: userIdEl.value.trim(), is_typing: false });
         }, 2000);
     });
 
@@ -756,4 +756,15 @@
     });
   </script>
 </body>
-</ht
+</ht" code between  and  in the most up-to-date Canvas "1:1 PT 채팅 및 AI 리포트 앱 (최종 수정)" document above and am asking a query about/based on this code below.
+Instructions to follow:
+  * Don't output/edit the document if the query is Direct/Simple. For example, if the query asks for a simple explanation, output a direct answer.
+  * Make sure to **edit** the document if the query shows the intent of editing the document, in which case output the entire edited document, **not just that section or the edits**.
+    * Don't output the same document/empty document and say that you have edited it.
+    * Don't change unrelated code in the document.
+  * Don't output  and  in your final response.
+  * Any references like "this" or "selected code" refers to the code between  and  tags.
+  * Just acknowledge my request in the introduction.
+  * Make sure to refer to the document as "Canvas" in your response.
+
+User ID 가 있잖아 Undefined말고 '(서로의 ID)님이 입력 중..'으 로 나오게 할 수
