@@ -537,13 +537,12 @@
           let typingUserName = '';
 
           for (const key in presences) {
-              const userPresenceArray = presences[key];
-              if (userPresenceArray.length > 0) {
-                  const userPresence = userPresenceArray[0];
-                  if (userPresence.name !== currentUserName && userPresence.is_typing) {
+              if (key !== channel.presence.get(channel.topic)[0].presence_ref) {
+                  const userPresenceArray = presences[key];
+                  if (userPresenceArray.length > 0 && userPresenceArray[0].is_typing) {
                       otherUserIsTyping = true;
-                      typingUserName = userPresence.name;
-                      break; 
+                      typingUserName = userPresenceArray[0].name;
+                      break;
                   }
               }
           }
@@ -601,7 +600,7 @@
                 updateCoinDisplay();
             }
         } else {
-            addLine(user, content);
+            // No longer add line locally, let the real-time listener handle it
         }
 
         if (currentUserRole === '회원' && userCoins <= 0) {
